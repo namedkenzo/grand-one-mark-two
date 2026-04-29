@@ -1,0 +1,14 @@
+{
+  "name": "gradeonemarktwo",
+  "version": "1.0.0",
+  "description": "Grade One Mark Two-Secure Netlify Relay Service",
+  "private": true,
+  "license": "MIT",
+  "scripts": {
+    "dev": "netlify dev",
+    "build": "echo 'Build complete: gradeonemarktwo'"
+  },
+  "devDependencies": {
+    "netlify-cli": "latest"
+  }
+}

@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Grade One Mark Two | پنل مدیریت رله</title>
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: rgba(255, 255, 255, 0.95);
+            --text: #1e293b;
+            --green: #22c55e;
+            --red: #ef4444;
+            --blue: #3b82f6;
+            --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            overflow: hidden;
+            position: relative;
+        }
+        /* پس‌زمینه انیمیشن */
+        .bg-animation {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(-45deg, #ee7752, #e73c7e, #23a6d5, #23d5ab);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            opacity: 0.15;
+            z-index: 0;
+        }
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 540px;
+            padding: 2rem;
+        }
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(20px);
+            border-radius: 2rem;
+            padding: 2.5rem 2rem;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            text-align: center;
+            animation: slideUp 0.6s ease-out;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .logo {
+            width: 70px;
+            height: 70px;
+            margin: 0 auto 1.5rem;
+            background: var(--gradient);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            color: white;
+            box-shadow: 0 10px 30px rgba(102, 126, 234, 0.4);
+        }
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 0.3rem;
+            color: #0f172a;
+        }
+        .subtitle {
+            color: #64748b;
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+        }
+        .status-badge.online {
+            background: rgba(34, 197, 94, 0.15);
+            color: var(--green);
+        }
+        .status-badge.offline {
+            background: rgba(239, 68, 68, 0.15);
+            color: var(--red);
+        }
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            display: inline-block;
+            animation: pulse 2s infinite;
+        }
+        .online .dot { background: var(--green); }
+        .offline .dot { background: var(--red); }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .info-grid {
+            display: grid;
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+        .info-item {
+            background: #f8fafc;
+            border-radius: 1rem;
+            padding: 1rem;
+            text-align: right;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .info-label { color: #64748b; font-size: 0.85rem; }
+        .info-value { color: #0f172a; font-weight: 600; font-size: 0.9rem; }
+        .refresh-btn {
+            background: var(--gradient);
+            color: white;
+            border: none;
+            padding: 0.75rem 2rem;
+            border-radius: 50px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+            margin-top: 0.5rem;
+        }
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+        footer {
+            margin-top: 1.5rem;
+            color: #94a3b8;
+            font-size: 0.8rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-animation"></div>
+    <div class="container">
+        <div class="card">
+            <div class="logo">⚡</div>
+            <h1>Grade One Mark Two</h1>
+            <p class="subtitle">سرویس رله هوشمند با Edge Function</p>
+            
+            <div id="statusBadge" class="status-badge offline">
+                <span class="dot"></span>
+                <span id="statusText">در حال بررسی...</span>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-item">
+                    <span class="info-label">آدرس Upstream</span>
+                    <span class="info-value" id="upstream">---</span>
+                </div>
+                <div class="info-item">
+                    <span class="info-label">آخرین بررسی</span>
+                    <span class="info-value" id="timestamp">---</span>
+                </div>
+            </div>
+            
+            <button class="refresh-btn" onclick="checkStatus()">
+                🔄 بروزرسانی وضعیت
+            </button>
+        </div>
+        <footer>
+            Grade One Mark Two • تمام حقوق محفوظ است
+        </footer>
+    </div>
+
+    <script>
+        async function checkStatus() {
+            const badge = document.getElementById('statusBadge');
+            const statusText = document.getElementById('statusText');
+            const upstreamEl = document.getElementById('upstream');
+            const timestampEl = document.getElementById('timestamp');
+            
+            // Reset
+            badge.className = 'status-badge offline';
+            statusText.textContent = 'در حال بررسی...';
+            
+            try {
+                const response = await fetch('/status');
+                if (!response.ok) throw new Error('Non-ok response');
+                
+                const data = await response.json();
+                
+                if (data.status === 'ok') {
+                    badge.className = 'status-badge online';
+                    statusText.textContent = 'آنلاین - فعال';
+                } else {
+                    badge.className = 'status-badge offline';
+                    statusText.textContent = 'آفلاین - خطا';
+                }
+                
+                upstreamEl.textContent = data.upstream || '---';
+                timestampEl.textContent = new Date(data.timestamp).toLocaleTimeString('fa-IR');
+            } catch (err) {
+                badge.className = 'status-badge offline';
+                statusText.textContent = 'آفلاین - عدم دسترسی';
+                upstreamEl.textContent = '---';
+                timestampEl.textContent = '---';
+            }
+        }
+        
+        // Check on load & refresh every 30s
+        checkStatus();
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>
