@@ -1,109 +1,199 @@
-// Grade One Mark Two – Secure Edge Relay with Static File Passthrough
-const UPSTREAM_BASE = (Netlify.env.get("TARGET_DOMAIN") || "").replace(/\/$/, "");
+/**
+ * Grade One Mark Two – Secure Edge Relay with Static File Passthrough
+ *
+ * This Netlify Edge Function acts as a transparent reverse proxy.
+ * It forwards non‑static requests to a configured upstream server,
+ * sanitizes headers, and provides a health‑check endpoint.
+ *
+ * Environment Variables:
+ *   TARGET_DOMAIN – Base URL of the upstream server (e.g., https://example.com:443)
+ */
 
-const EXCLUDED_HEADERS = new Set([
-    "host",
-    "connection",
-    "keep-alive",
-    "proxy-authenticate",
-    "proxy-authorization",
-    "te",
-    "trailer",
-    "transfer-encoding",
-    "upgrade",
-    "forwarded",
-    "x-forwarded-host",
-    "x-forwarded-proto",
-    "x-forwarded-port",
+// ---------------------------------------------------------------------------
+// Configuration
+// ---------------------------------------------------------------------------
+
+/** Upstream target, read from environment variable and normalized. */
+const UPSTREAM_BASE = (Netlify.env.get("TARGET_DOMAIN") ?? "").replace(/\/+$/, "");
+
+/**
+ * Headers that must be removed from client requests before forwarding.
+ * These are either hop‑by‑hop headers or ones that the edge injects itself.
+ */
+const EXCLUDED_REQUEST_HEADERS = new Set([
+  "host",
+  "connection",
+  "keep-alive",
+  "proxy-authenticate",
+  "proxy-authorization",
+  "te",
+  "trailer",
+  "transfer-encoding",
+  "upgrade",
+  "forwarded",
+  "x-forwarded-for",
+  "x-forwarded-host",
+  "x-forwarded-proto",
+  "x-forwarded-port",
+  // Netlify‑specific internal headers
+  "x-nf-connection",
+  "x-nf-request-id",
+  "x-nf-debug",
+  // Prevent header injection
+  "x-forwarded-server",
+  "x-real-ip",
 ]);
 
-// لیست پسوندها و مسیرهایی که از رله خارج شوند و به‌عنوان فایل استاتیک سرو شوند
-const STATIC_EXTENSIONS = /\.(html|css|js|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|map|webmanifest)$/i;
-const STATIC_PATHS = ["/", "/favicon.ico"]; // مسیرهایی که بدون پسوند هم استاتیک هستند
+/**
+ * Response headers that should never be forwarded back to the client.
+ */
+const EXCLUDED_RESPONSE_HEADERS = new Set([
+  "transfer-encoding",   // handled by the runtime
+  "content-encoding",    // let Netlify re‑compress if needed
+  "set-cookie",          // security: do not leak upstream cookies by default
+]);
 
+// ---------------------------------------------------------------------------
+// Static‑File Detection
+// ---------------------------------------------------------------------------
+
+/**
+ * File extensions that are treated as static assets.
+ * All requests for these are passed through to Netlify's CDN.
+ */
+const STATIC_EXTENSIONS = /\.(html|css|js|png|jpg|jpeg|gif|svg|ico|woff2?|ttf|eot|json|map|webmanifest)(\?.*)?$/i;
+
+/**
+ * Paths that should be served as static files even without an extension.
+ */
+const STATIC_PATHS = new Set(["/", "/favicon.ico"]);
+
+/**
+ * Determine whether the given pathname corresponds to a static file.
+ * @param {string} pathname
+ * @returns {boolean}
+ */
 function isStaticRequest(pathname) {
-    if (STATIC_PATHS.includes(pathname)) return true;
-    return STATIC_EXTENSIONS.test(pathname);
+  return STATIC_PATHS.has(pathname) || STATIC_EXTENSIONS.test(pathname);
 }
 
+// ---------------------------------------------------------------------------
+// Helper Functions
+// ---------------------------------------------------------------------------
+
+/**
+ * Copy and sanitise headers from the incoming request.
+ * Returns a plain object suitable for fetch().
+ */
+function buildUpstreamHeaders(requestHeaders) {
+  const headers = new Headers();
+
+  for (const [key, value] of requestHeaders) {
+    const lower = key.toLowerCase();
+
+    // Skip excluded headers and any Netlify internal prefix
+    if (EXCLUDED_REQUEST_HEADERS.has(lower)) continue;
+    if (lower.startsWith("x-nf-") || lower.startsWith("x-netlify-")) continue;
+
+    headers.set(key, value);
+  }
+
+  // Ensure the correct Host header is sent to the upstream
+  const upstreamUrl = new URL(UPSTREAM_BASE);
+  headers.set("host", upstreamUrl.host);
+
+  return headers;
+}
+
+/**
+ * Filter response headers before sending them back to the client.
+ */
+function filterResponseHeaders(upstreamHeaders) {
+  const headers = new Headers();
+
+  for (const [key, value] of upstreamHeaders) {
+    const lower = key.toLowerCase();
+    if (EXCLUDED_RESPONSE_HEADERS.has(lower)) continue;
+    // Prevent leaking internal headers
+    if (lower.startsWith("x-nf-") || lower.startsWith("x-netlify-")) continue;
+    headers.set(key, value);
+  }
+
+  return headers;
+}
+
+/**
+ * Return a standard error response.
+ */
+function errorResponse(message, status = 502) {
+  return new Response(`GradeOneMarkTwo: ${message}`, {
+    status,
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main Handler
+// ---------------------------------------------------------------------------
+
 export default async function handler(request) {
-    // اگر TARGET_DOMAIN تنظیم نشده باشد
-    if (!UPSTREAM_BASE) {
-        return new Response("GradeOneMarkTwo Error: TARGET_DOMAIN not configured", {
-            status: 500,
-        });
-    }
+  // 1. Validate configuration
+  if (!UPSTREAM_BASE) {
+    return errorResponse("TARGET_DOMAIN not configured", 500);
+  }
 
-    const reqUrl = new URL(request.url);
-    const pathname = reqUrl.pathname;
+  const requestUrl = new URL(request.url);
+  const pathname = requestUrl.pathname;
 
-    // --- ENDPOINT مخصوص STATUS ---
-    if (pathname === "/status") {
-        const payload = {
-            status: "ok",
-            upstream: UPSTREAM_BASE,
-            timestamp: Date.now(),
-        };
-        return new Response(JSON.stringify(payload), {
-            headers: { "content-type": "application/json; charset=utf-8" },
-        });
-    }
+  // 2. Health‑check endpoint
+  if (pathname === "/status") {
+    const payload = {
+      status: "ok",
+      upstream: UPSTREAM_BASE,
+      timestamp: Date.now(),
+    };
+    return new Response(JSON.stringify(payload), {
+      headers: { "content-type": "application/json; charset=utf-8" },
+    });
+  }
 
-    // --- PASS-THROUGH برای فایل‌های استاتیک (index.html و غیره) ---
-    if (isStaticRequest(pathname)) {
-        // خروج بدون return، تا Netlify فایل را از public سرو کند
-        return;
-    }
+  // 3. Static‑file passthrough
+  if (isStaticRequest(pathname)) {
+    // Returning nothing lets Netlify serve the file from the `public` directory.
+    return;
+  }
 
-    // --- RELAY برای تمام مسیرهای دیگر ---
-    try {
-        const destination = UPSTREAM_BASE + pathname + reqUrl.search;
-        const outHeaders = new Headers();
-        let clientIp = null;
+  // 4. Relay to upstream
+  try {
+    const destination = `${UPSTREAM_BASE}${pathname}${requestUrl.search}`;
+    const upstreamHeaders = buildUpstreamHeaders(request.headers);
 
-        for (const [key, value] of request.headers) {
-            const k = key.toLowerCase();
+    const fetchOptions = {
+      method: request.method,
+      headers: upstreamHeaders,
+      redirect: "manual",
+      // Prevent streaming issues with GET/HEAD
+      body: request.method !== "GET" && request.method !== "HEAD" ? request.body : undefined,
+    };
 
-            if (EXCLUDED_HEADERS.has(k)) continue;
-            if (k.startsWith("x-nf-")) continue;
-            if (k.startsWith("x-netlify-")) continue;
+    // Add a reasonable timeout to avoid hanging requests
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30_000); // 30s
+    fetchOptions.signal = controller.signal;
 
-            if (k === "x-real-ip") {
-                clientIp = value;
-                continue;
-            }
-            if (k === "x-forwarded-for") {
-                if (!clientIp) clientIp = value;
-                continue;
-            }
+    const upstreamResponse = await fetch(destination, fetchOptions);
+    clearTimeout(timeoutId);
 
-            outHeaders.set(key, value);
-        }
+    const respHeaders = filterResponseHeaders(upstreamResponse.headers);
 
-        if (clientIp) outHeaders.set("x-forwarded-for", clientIp);
+    // Stream the body directly to avoid buffering
+    return new Response(upstreamResponse.body, {
+      status: upstreamResponse.status,
+      headers: respHeaders,
+    });
 
-        const fetchOptions = {
-            method: request.method,
-            headers: outHeaders,
-            redirect: "manual",
-        };
-
-        const hasPayload = request.method !== "GET" && request.method !== "HEAD";
-        if (hasPayload) fetchOptions.body = request.body;
-
-        const upstreamResp = await fetch(destination, fetchOptions);
-
-        const respHeaders = new Headers();
-        for (const [key, value] of upstreamResp.headers) {
-            if (key.toLowerCase() === "transfer-encoding") continue;
-            respHeaders.set(key, value);
-        }
-
-        return new Response(upstreamResp.body, {
-            status: upstreamResp.status,
-            headers: respHeaders,
-        });
-    } catch (e) {
-        return new Response("GradeOneMarkTwo: Gateway Timeout", { status: 502 });
-    }
+  } catch (error) {
+    console.error("Relay error:", error);
+    return errorResponse("Gateway Timeout");
+  }
 }
