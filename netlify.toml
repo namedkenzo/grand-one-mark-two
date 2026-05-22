@@ -1,7 +1,9 @@
+# Netlify build and edge function routing configuration
 [build]
   command = "npm run build"
   publish = "public"
 
+# Edge Function relay configuration: all requests pass through the relay
 [[edge_functions]]
   function = "relay"
   path = "/*"
