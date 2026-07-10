@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="fa">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>{{.subTitle}} | اشتراک</title>
+    <link rel="icon" type="image/png" href="/favicon.png?v=2">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css"/>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{background:#0a0a0a;font-family:'Inter',sans-serif;min-height:100vh;display:flex;justify-content:center;align-items:flex-start;padding:16px;overflow-x:hidden;padding-bottom:40px;filter:grayscale(1)}
+        
+        #aquarium{position:fixed;inset:0;z-index:0;pointer-events:none}
+        .water-overlay{position:fixed;inset:0;z-index:1;pointer-events:none;background:linear-gradient(180deg,rgba(10,10,10,.6) 0%,rgba(20,20,20,.5) 60%,rgba(10,10,10,.7) 100%)}
+        .caustics{position:fixed;inset:0;z-index:2;pointer-events:none;overflow:hidden}
+        .caustic-ray{position:absolute;top:-20%;border-radius:50%;animation:caustic-sway var(--dur) ease-in-out infinite;transform-origin:top center}
+        @keyframes caustic-sway{0%,100%{transform:rotate(var(--r1)) scaleX(1);opacity:.2}50%{transform:rotate(var(--r2)) scaleX(1.8);opacity:.4}}
+        .bubble{position:fixed;border-radius:50%;border:1px solid rgba(180,180,180,.3);background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.2),rgba(150,150,150,.05));animation:rise var(--rise-dur) ease-in infinite;z-index:2;pointer-events:none}
+        @keyframes rise{0%{transform:translateY(0) translateX(0) scale(1);opacity:0}10%{opacity:.4}85%{opacity:.2}100%{transform:translateY(-110vh) translateX(var(--drift)) scale(1.3);opacity:0}}
+        .glass-top{position:fixed;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,transparent,rgba(200,200,200,.5),rgba(255,255,255,.7),rgba(200,200,200,.5),transparent);z-index:10;animation:glass-shimmer 4s ease-in-out infinite}
+        @keyframes glass-shimmer{0%,100%{opacity:.3}50%{opacity:.8}}
+        
+        .container{max-width:520px;width:100%;position:relative;z-index:5;margin:0 auto}
+        .glass-card{background:rgba(15,15,15,.85);backdrop-filter:blur(14px);border:1px solid rgba(180,180,180,.15);border-top:1px solid rgba(200,200,200,.3);border-radius:24px;padding:28px 22px;position:relative;overflow:hidden;transition:all .3s cubic-bezier(0.4,0,0.2,1);box-shadow:0 12px 40px rgba(0,0,0,.8)}
+        .glass-card::before{content:"";position:absolute;inset:-2px;background:conic-gradient(from 0deg,#555,#888,#aaa,#555);animation:spin 6s linear infinite;z-index:-2;border-radius:24px;opacity:0;transition:.5s}
+        .glass-card:hover::before{opacity:.3}
+        .glass-card::after{content:"";position:absolute;inset:1px;background:#0a0a0a;border-radius:23px;z-index:-1}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        
+        .header{text-align:center;margin-bottom:20px}
+        .logo-icon{width:60px;height:60px;background:linear-gradient(135deg,#444,#222);border-radius:16px;display:flex;align-items:center;justify-content:center;margin:0 auto 12px;font-size:28px;box-shadow:0 0 25px rgba(100,100,100,.3);animation:logo-pulse 3s ease-in-out infinite}
+        @keyframes logo-pulse{0%,100%{box-shadow:0 0 25px rgba(100,100,100,.3)}50%{box-shadow:0 0 40px rgba(100,100,100,.5)}}
+        .header h1{font-size:26px;font-weight:800;background:linear-gradient(135deg,#fff,#aaa);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+        .header .subtitle{color:#999;font-size:12px;letter-spacing:2px;text-transform:uppercase;margin-top:4px;font-weight:600}
+        
+        .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin:20px 0}
+        .stat-item{background:rgba(255,255,255,0.03);border:1px solid rgba(180,180,180,.12);border-radius:14px;padding:16px 6px;text-align:center;transition:all .3s ease;min-height:80px;display:flex;flex-direction:column;justify-content:center;align-items:center}
+        .stat-item:hover{border-color:rgba(200,200,200,.3);transform:translateY(-3px)}
+        .stat-item .value{font-size:20px;font-weight:900;color:#ccc;line-height:1.2;word-break:break-word}
+        .stat-item .label{font-size:10px;color:#999;text-transform:uppercase;letter-spacing:.3px;margin-top:5px;font-weight:600}
+        
+        .days-banner{grid-column:1/-1;background:linear-gradient(135deg,rgba(180,180,180,.1),rgba(180,180,180,.02));border:2px solid rgba(180,180,180,.2);border-radius:16px;padding:20px 16px;text-align:center;margin:4px 0 8px;position:relative;overflow:hidden;transition:all .4s cubic-bezier(.34,1.56,.64,1)}
+        .days-banner::before{content:'';position:absolute;inset:0;background:linear-gradient(90deg,transparent,rgba(200,200,200,.06),transparent);animation:shimmer 3s ease-in-out infinite;transform:translateX(-100%)}
+        @keyframes shimmer{0%{transform:translateX(-100%)}100%{transform:translateX(100%)}}
+        .days-banner:hover{transform:scale(1.02);border-color:rgba(200,200,200,.5);box-shadow:0 8px 30px rgba(0,0,0,.3)}
+        .days-banner .days-number{font-size:48px;font-weight:900;background:linear-gradient(135deg,#ccc,#888);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;line-height:1.1}
+        .days-banner .days-label{font-size:16px;color:#999;font-weight:600;letter-spacing:1px;margin-top:2px;display:block}
+        .days-banner .days-icon{position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:60px;color:rgba(180,180,180,.06)}
+        
+        .qr-section{text-align:center;margin:18px 0;padding:20px 16px;background:rgba(255,255,255,0.02);border-radius:16px;border:1px solid rgba(180,180,180,.08)}
+        .qr-section .qr-label{color:#999;font-size:12px;font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;display:block}
+        .qr-section .qr-label i{color:#aaa;margin-right:6px}
+        .qr-container{display:flex;justify-content:center;align-items:center;padding:14px;background:white;border-radius:16px;display:inline-block;margin:0 auto;box-shadow:0 4px 20px rgba(0,0,0,.4)}
+        #qrcode{display:flex;justify-content:center;align-items:center}
+        #qrcode img,#qrcode canvas{max-width:280px;width:280px;height:280px;border-radius:8px;filter:grayscale(1)}
+        
+        .links-section{margin-top:18px;border-top:1px solid rgba(180,180,180,.08);padding-top:16px}
+        .links-section h3{color:#999;font-size:12px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:12px;font-weight:700}
+        .links-section h3 i{color:#aaa;margin-right:6px}
+        .link-item{background:rgba(255,255,255,.02);border:1px solid rgba(180,180,180,.1);border-radius:12px;padding:12px 14px 10px;margin-bottom:8px;word-break:break-all;font-size:11px;color:#aaa;font-family:monospace;transition:all .3s ease;cursor:pointer;text-align:center}
+        .link-item:hover{background:rgba(180,180,180,.08);border-color:rgba(200,200,200,.25)}
+        .link-item .copy-text{font-size:14px;color:#e0e0e0;font-weight:600;font-family:'Inter',sans-serif;margin-top:6px;display:block;letter-spacing:.3px}
+        .link-item .copy-text i{margin-right:5px;color:#aaa}
+        .link-item .copy-feedback{display:block;font-size:16px;font-weight:700;color:#888;margin-top:4px;opacity:0;transform:translateY(-8px);transition:all .4s cubic-bezier(.34,1.56,.64,1);height:0;overflow:hidden}
+        .link-item .copy-feedback.show{opacity:1;transform:translateY(0);height:28px}
+        .no-links{color:#666;font-size:13px;text-align:center;padding:12px 0}
+        .no-links i{color:#888;margin-right:6px}
+        
+        .footer{text-align:center;margin-top:20px;padding-top:14px;border-top:1px solid rgba(180,180,180,.05)}
+        .footer .hero-text{font-size:14px;font-weight:700;background:linear-gradient(135deg,#ccc,#888,#666);-webkit-background-clip:text;-webkit-text-fill-color:transparent;display:block;margin-bottom:4px;letter-spacing:.5px}
+        
+        @media (max-width:480px){
+            body{padding:10px;padding-bottom:30px}
+            .glass-card{padding:20px 14px}
+            .stats-grid{gap:8px}
+            .stat-item{min-height:68px;padding:12px 4px}
+            .stat-item .value{font-size:17px}
+            .stat-item .label{font-size:9px}
+            .header h1{font-size:21px}
+            .logo-icon{width:50px;height:50px;font-size:24px}
+            .days-banner{padding:16px 12px}
+            .days-banner .days-number{font-size:38px}
+            .days-banner .days-label{font-size:14px}
+            .days-banner .days-icon{font-size:40px;right:6px}
+            #qrcode img,#qrcode canvas{max-width:230px;width:230px;height:230px}
+            .link-item{font-size:10px;padding:10px 10px 8px}
+            .link-item .copy-text{font-size:13px}
+        }
+        @media (max-width:380px){
+            #qrcode img,#qrcode canvas{max-width:190px;width:190px;height:190px}
+            .stat-item .value{font-size:15px}
+            .stat-item{min-height:60px}
+            .days-banner .days-number{font-size:32px}
+        }
+    </style>
+</head>
+<body>
+
+<!-- ====== Aquarium Background ====== -->
+<canvas id="aquarium"></canvas>
+<div class="water-overlay"></div>
+<div class="caustics" id="caustics"></div>
+<div class="glass-top"></div>
+
+<!-- ====== Main Content ====== -->
+<div class="container">
+    <div class="glass-card">
+        <div class="header">
+            <div class="logo-icon">🪤</div>
+            <h1>{{.subTitle}}</h1>
+            <div class="subtitle">اشتراک شما</div>
+        </div>
+
+        <!-- ====== Stats Grid ====== -->
+        <div class="stats-grid">
+            <div class="stat-item">
+                <div class="value">{{.used}}</div>
+                <div class="label">مصرف شده</div>
+            </div>
+            <div class="stat-item">
+                <div class="value">{{.upload}}</div>
+                <div class="label">آپلود</div>
+            </div>
+            <div class="stat-item">
+                <div class="value">{{.download}}</div>
+                <div class="label">دانلود</div>
+            </div>
+
+            <!-- ====== BIG BANNER: Days Remaining ====== -->
+            <div class="days-banner" id="daysBanner">
+                <span class="days-icon"><i class="fas fa-calendar-alt"></i></span>
+                {{if .expire}}
+                    {{if eq .expire 0}}
+                        <span class="days-number">♾️</span>
+                        <span class="days-label">نامحدود</span>
+                    {{else}}
+                        <span class="days-number" id="daysNumber">--</span>
+                        <span class="days-label" id="daysLabel">در حال محاسبه...</span>
+                    {{end}}
+                {{else}}
+                    <span class="days-number">♾️</span>
+                    <span class="days-label">نامحدود</span>
+                {{end}}
+            </div>
+        </div>
+
+        <!-- ====== QR Code ====== -->
+        <div class="qr-section">
+            <span class="qr-label"><i class="fas fa-qrcode"></i> اسکن کد QR</span>
+            <div class="qr-container">
+                <div id="qrcode"></div>
+            </div>
+        </div>
+
+        <!-- ====== Links ====== -->
+        <div class="links-section">
+            <h3><i class="fas fa-link"></i> لینک‌های کانفیگ</h3>
+            {{range .links}}
+            <div class="link-item" onclick="copyToClipboard(this)">
+                <span style="font-size:11px;word-break:break-all;">{{.}}</span>
+                <span class="copy-text"><i class="fas fa-copy"></i> کپی کن</span>
+                <span class="copy-feedback"><i class="fas fa-check-circle"></i> کپی شد! ✅</span>
+            </div>
+            {{else}}
+            <div class="no-links"><i class="fas fa-exclamation-circle"></i> هیچ کانفیگی فعال نیست</div>
+            {{end}}
+        </div>
+
+        <!-- ====== Footer ====== -->
+        <div class="footer">
+            <span class="hero-text">🚀 NamedZadim</span>
+        </div>
+    </div>
+</div>
+
+<!-- ====== Aquarium Script ====== -->
+<script>
+(function() {
+    const canvas = document.getElementById('aquarium');
+    const ctx = canvas.getContext('2d');
+    let W, H;
+    function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+    resize();
+    window.addEventListener('resize', resize);
+
+    const causticEl = document.getElementById('caustics');
+    for (let i = 0; i < 18; i++) {
+        const ray = document.createElement('div');
+        ray.className = 'caustic-ray';
+        const left = 2 + (i / 18) * 96, dur = 4 + Math.random() * 6, r1 = -5 + Math.random() * 10, r2 = -8 + Math.random() * 16;
+        ray.style.cssText = `left:${left}%;--dur:${dur}s;--r1:${r1}deg;--r2:${r2}deg;width:${1+Math.random()*3}px;height:${30+Math.random()*30}%;background:linear-gradient(180deg,rgba(180,180,180,.15) 0%,rgba(150,150,150,.08) 60%,transparent 100%);opacity:${0.2+Math.random()*0.4};animation-delay:${Math.random()*-8}s;`;
+        causticEl.appendChild(ray);
+    }
+
+    function spawnBubble() {
+        const b = document.createElement('div');
+        b.className = 'bubble';
+        const size = 3 + Math.random() * 10, left = Math.random() * 100, dur = 6 + Math.random() * 14, drift = (Math.random() - .5) * 80;
+        b.style.cssText = `width:${size}px;height:${size}px;left:${left}%;bottom:-${size}px;--rise-dur:${dur}s;--drift:${drift}px;animation-delay:${Math.random()*-20}s;`;
+        document.body.appendChild(b);
+        setTimeout(() => b.remove(), (dur + 5) * 1000);
+    }
+    for (let i = 0; i < 20; i++) spawnBubble();
+    setInterval(spawnBubble, 1000);
+
+    // ====== Crow Class (Black & White) ======
+    class Crow {
+        constructor() { this.reset(true); }
+        reset(init) {
+            this.x = init ? Math.random() * W : (Math.random() < 0.5 ? -80 : W + 80);
+            this.y = 40 + Math.random() * (H * 0.55);
+            this.baseY = this.y;
+            this.dir = Math.random() < 0.5 ? 1 : -1;
+            this.speedX = (0.8 + Math.random() * 1.4) * this.dir;
+            this.wingPhase = Math.random() * Math.PI * 2;
+            this.wingSpeed = 0.08 + Math.random() * 0.05;
+            this.wobble = 0;
+            this.wobbleSpeed = 0.02 + Math.random() * 0.02;
+            this.turnTimer = 0;
+            this.size = 22 + Math.random() * 14;
+            this.gray = 20 + Math.random() * 30; // 20~50
+        }
+        update() {
+            this.wingPhase += this.wingSpeed;
+            this.wobble += this.wobbleSpeed;
+            this.y = this.baseY + Math.sin(this.wobble) * 14;
+            this.x += this.speedX;
+            this.turnTimer++;
+            if (this.turnTimer > 180 && Math.random() < 0.004) {
+                this.dir *= -1;
+                this.speedX *= -1;
+                this.turnTimer = 0;
+            }
+            if (this.x > W + 120 || this.x < -120) this.reset(false);
+        }
+        draw(c) {
+            const s = this.size;
+            const wingAngle = Math.sin(this.wingPhase) * 0.8 + 0.2;
+            c.save();
+            c.translate(this.x, this.y);
+            if (this.dir < 0) c.scale(-1, 1);
+
+            // body
+            c.beginPath();
+            c.ellipse(0, 0, s * 0.45, s * 0.28, 0, 0, Math.PI * 2);
+            const g = c.createRadialGradient(-s*0.1, -s*0.1, 0, 0, 0, s*0.5);
+            const b = this.gray;
+            g.addColorStop(0, `rgb(${b+40},${b+30},${b+20})`);
+            g.addColorStop(1, `rgb(${b-10},${b-20},${b-20})`);
+            c.fillStyle = g;
+            c.fill();
+            c.strokeStyle = 'rgba(0,0,0,0.3)';
+            c.lineWidth = 1;
+            c.stroke();
+
+            // wing upper
+            c.save();
+            c.translate(s * 0.15, -s * 0.12);
+            const wingY = -s * 0.35 * (0.4 + wingAngle * 0.6);
+            c.beginPath();
+            c.moveTo(0, 0);
+            c.quadraticCurveTo(s * 0.6, wingY * 0.7, s * 0.9, wingY * 0.1);
+            c.quadraticCurveTo(s * 0.7, -s * 0.08, 0, 0);
+            c.fillStyle = `rgb(${b-5},${b-15},${b-20})`;
+            c.fill();
+            c.strokeStyle = 'rgba(0,0,0,0.2)';
+            c.lineWidth = 0.5;
+            c.stroke();
+            c.restore();
+
+            // wing lower
+            c.save();
+            c.translate(s * 0.15, s * 0.12);
+            const wingY2 = s * 0.35 * (0.4 + wingAngle * 0.6);
+            c.beginPath();
+            c.moveTo(0, 0);
+            c.quadraticCurveTo(s * 0.6, wingY2 * 0.7, s * 0.9, wingY2 * 0.1);
+            c.quadraticCurveTo(s * 0.7, s * 0.08, 0, 0);
+            c.fillStyle = `rgb(${b-10},${b-20},${b-25})`;
+            c.fill();
+            c.strokeStyle = 'rgba(0,0,0,0.2)';
+            c.lineWidth = 0.5;
+            c.stroke();
+            c.restore();
+
+            // tail
+            c.beginPath();
+            c.moveTo(-s * 0.45, -s * 0.05);
+            c.lineTo(-s * 0.75, -s * 0.25);
+            c.lineTo(-s * 0.8, -s * 0.05);
+            c.lineTo(-s * 0.75, s * 0.15);
+            c.closePath();
+            c.fillStyle = `rgb(${b-15},${b-25},${b-30})`;
+            c.fill();
+
+            // head
+            c.beginPath();
+            c.arc(s * 0.4, -s * 0.05, s * 0.18, 0, Math.PI * 2);
+            c.fillStyle = `rgb(${b+30},${b+15},${b+5})`;
+            c.fill();
+
+            // beak
+            c.beginPath();
+            c.moveTo(s * 0.56, -s * 0.07);
+            c.lineTo(s * 0.78, -s * 0.02);
+            c.lineTo(s * 0.56, s * 0.05);
+            c.closePath();
+            c.fillStyle = '#222';
+            c.fill();
+
+            // eye
+            c.beginPath();
+            c.arc(s * 0.46, -s * 0.09, s * 0.04, 0, Math.PI * 2);
+            c.fillStyle = '#eee';
+            c.fill();
+            c.beginPath();
+            c.arc(s * 0.48, -s * 0.10, s * 0.02, 0, Math.PI * 2);
+            c.fillStyle = '#111';
+            c.fill();
+
+            c.restore();
+        }
+    }
+
+    // ====== Background elements (grayscale) ======
+    class Particle {
+        constructor() { this.reset(); }
+        reset() {
+            this.x = Math.random() * W;
+            this.y = Math.random() * H;
+            this.r = 0.5 + Math.random() * 1.5;
+            this.vx = (Math.random() - .5) * .3;
+            this.vy = -0.1 - Math.random() * .3;
+            this.op = 0.2 + Math.random() * .4;
+            this.life = Math.random();
+        }
+        update() {
+            this.x += this.vx;
+            this.y += this.vy;
+            this.life -= 0.002;
+            if (this.life <= 0 || this.y < 0) this.reset();
+        }
+        draw(c) {
+            c.beginPath();
+            c.arc(this.x, this.y, this.r, 0, Math.PI * 2);
+            c.fillStyle = `rgba(180,180,180,${this.op*this.life})`;
+            c.fill();
+        }
+    }
+
+    class Seaweed {
+        constructor(x) {
+            this.x = x;
+            this.segs = 5 + Math.floor(Math.random() * 5);
+            this.segL = 18 + Math.random() * 12;
+            this.phase = Math.random() * Math.PI * 2;
+            this.speed = 0.015 + Math.random() * .01;
+            this.color = '#1a1a1a';
+            this.hi = '#444';
+        }
+        draw(c, t) {
+            c.save();
+            c.translate(this.x, H);
+            let px = 0, py = 0;
+            c.beginPath();
+            c.moveTo(0, 0);
+            for (let i = 0; i < this.segs; i++) {
+                const sw = Math.sin(this.phase + t * this.speed + i * .8) * (i + 1) * 4;
+                px += sw * .1;
+                py -= this.segL;
+                c.lineTo(px + sw, py);
+            }
+            c.strokeStyle = this.color;
+            c.lineWidth = 3 + (this.segs - 3) * .5;
+            c.lineCap = 'round';
+            c.lineJoin = 'round';
+            c.stroke();
+            for (let i = 1; i < this.segs; i++) {
+                const sw = Math.sin(this.phase + t * this.speed + i * .8) * (i + 1) * 4;
+                const lx = sw + (Math.sin(this.phase + t * this.speed + (i - .5) * .8) * i * 4) * .5,
+                    ly = -(i * this.segL) + this.segL * .5,
+                    ld = i % 2 === 0 ? 1 : -1;
+                c.beginPath();
+                c.ellipse(lx + ld * 8, ly - 5, 10, 4, ld * .4, 0, Math.PI * 2);
+                c.fillStyle = this.hi + '99';
+                c.fill();
+            }
+            c.restore();
+        }
+    }
+
+    class Coral {
+        constructor(x) {
+            this.x = x;
+            this.type = Math.floor(Math.random() * 3);
+            this.scale = 0.7 + Math.random() * .6;
+            this.color = ['#444','#666','#333','#555','#888'][Math.floor(Math.random() * 5)];
+        }
+        draw(c) {
+            c.save();
+            c.translate(this.x, H);
+            c.scale(this.scale, this.scale);
+            if (this.type === 0) {
+                const br = (x, y, a, d, l) => {
+                    if (!d) return;
+                    const ex = x + Math.cos(a) * l, ey = y + Math.sin(a) * l;
+                    c.beginPath();
+                    c.moveTo(x, y);
+                    c.lineTo(ex, ey);
+                    c.strokeStyle = this.color;
+                    c.lineWidth = d * 1.5;
+                    c.stroke();
+                    br(ex, ey, a - .5, d - 1, l * .75);
+                    br(ex, ey, a + .5, d - 1, l * .75);
+                };
+                br(0, 0, -Math.PI / 2, 4, 25);
+            } else if (this.type === 1) {
+                for (let i = 0; i < 8; i++) {
+                    const a = (i / 8) * Math.PI * 2;
+                    c.beginPath();
+                    c.moveTo(0, 0);
+                    c.lineTo(Math.cos(a) * 28, Math.sin(a) * 28 - 5);
+                    c.strokeStyle = this.color;
+                    c.lineWidth = 3;
+                    c.stroke();
+                    c.beginPath();
+                    c.arc(Math.cos(a) * 30, Math.sin(a) * 30 - 5, 5, 0, Math.PI * 2);
+                    c.fillStyle = this.color;
+                    c.fill();
+                }
+            } else {
+                for (let i = -3; i <= 3; i++) {
+                    c.beginPath();
+                    c.moveTo(0, 0);
+                    c.quadraticCurveTo(i * 12, -20, i * 8, -40);
+                    c.strokeStyle = this.color + 'aa';
+                    c.lineWidth = 1.5;
+                    c.stroke();
+                }
+            }
+            c.restore();
+        }
+    }
+
+    // ====== Instantiate crows ======
+    const crows = Array.from({ length: 12 }, () => new Crow());
+    const particles = Array.from({ length: 50 }, () => new Particle());
+    const seaweeds = Array.from({ length: 20 }, () => new Seaweed(Math.random() * W));
+    const corals = Array.from({ length: 15 }, () => new Coral(Math.random() * W));
+    let time = 0;
+
+    function drawSeabed() {
+        const g = ctx.createLinearGradient(0, H * .88, 0, H);
+        g.addColorStop(0, 'rgba(10,10,10,0)');
+        g.addColorStop(.3, 'rgba(15,15,15,.7)');
+        g.addColorStop(1, 'rgba(10,10,10,.9)');
+        ctx.fillStyle = g;
+        ctx.fillRect(0, H * .88, W, H * .12);
+        ctx.strokeStyle = 'rgba(180,180,180,.06)';
+        ctx.lineWidth = 1;
+        for (let i = 0; i < 8; i++) {
+            ctx.beginPath();
+            ctx.ellipse(W / 2, H + 10, W * (.3 + i * .1), 8 + i * 3, 0, Math.PI, 0);
+            ctx.stroke();
+        }
+    }
+
+    function drawRays() {
+        for (let i = 0; i < 5; i++) {
+            const x = W * (.1 + i * .2);
+            const g = ctx.createLinearGradient(x, 0, x + 30, H * .7);
+            g.addColorStop(0, 'rgba(180,180,180,.05)');
+            g.addColorStop(.5, 'rgba(180,180,180,.02)');
+            g.addColorStop(1, 'transparent');
+            ctx.beginPath();
+            ctx.moveTo(x - 5, 0);
+            ctx.lineTo(x + 35, 0);
+            ctx.lineTo(x + 50, H * .7);
+            ctx.lineTo(x - 20, H * .7);
+            ctx.closePath();
+            ctx.fillStyle = g;
+            ctx.fill();
+        }
+    }
+
+    function loop() {
+        ctx.clearRect(0, 0, W, H);
+        time++;
+        const bg = ctx.createLinearGradient(0, 0, 0, H);
+        bg.addColorStop(0, '#0a0a0a');
+        bg.addColorStop(.4, '#0e0e0e');
+        bg.addColorStop(.8, '#0a0a0a');
+        bg.addColorStop(1, '#060606');
+        ctx.fillStyle = bg;
+        ctx.fillRect(0, 0, W, H);
+        drawRays();
+        particles.forEach(p => { p.update(); p.draw(ctx); });
+        corals.forEach(c => c.draw(ctx));
+        seaweeds.forEach(s => s.draw(ctx, time));
+        drawSeabed();
+        crows.forEach(c => { c.update(); c.draw(ctx); });
+        requestAnimationFrame(loop);
+    }
+    loop();
+})();
+
+// ====== Copy to Clipboard ======
+function copyToClipboard(el) {
+    const text = el.querySelector('span:first-child')?.innerText || el.innerText;
+    const feedback = el.querySelector('.copy-feedback');
+    navigator.clipboard.writeText(text).then(() => {
+        if (feedback) {
+            feedback.classList.add('show');
+            setTimeout(() => feedback.classList.remove('show'), 2000);
+        }
+        el.style.borderColor = '#888';
+        el.style.background = 'rgba(180,180,180,0.08)';
+        setTimeout(() => {
+            el.style.borderColor = 'rgba(180,180,180,0.12)';
+            el.style.background = 'rgba(255,255,255,0.02)';
+        }, 1500);
+    });
+}
+
+// ====== Convert Unix Timestamp to Days Remaining ======
+document.addEventListener('DOMContentLoaded', function() {
+    const daysNumber = document.getElementById('daysNumber');
+    const daysLabel = document.getElementById('daysLabel');
+    
+    if (daysNumber && daysLabel) {
+        const expireTimestamp = {{.expire}};
+        
+        if (expireTimestamp && expireTimestamp > 0) {
+            const now = Math.floor(Date.now() / 1000);
+            const diffSeconds = expireTimestamp - now;
+            const diffDays = Math.ceil(diffSeconds / 86400);
+            
+            if (diffDays > 0) {
+                daysNumber.textContent = diffDays;
+                daysLabel.textContent = 'روز باقی‌مانده';
+            } else if (diffDays === 0) {
+                daysNumber.textContent = '⏰';
+                daysLabel.textContent = 'امروز منقضی میشه!';
+            } else {
+                daysNumber.textContent = '⛔';
+                daysLabel.textContent = 'منقضی شده!';
+            }
+        }
+    }
+});
+
+// ====== QR Code - FIXED ======
+document.addEventListener('DOMContentLoaded', function() {
+    const links = document.querySelectorAll('.link-item span:first-child');
+    if (links.length > 0) {
+        const firstLink = links[0].innerText;
+        if (firstLink && typeof QRCode !== 'undefined') {
+            try {
+                const cleanLink = firstLink.trim();
+                new QRCode(document.getElementById('qrcode'), {
+                    text: cleanLink,
+                    width: 280,
+                    height: 280,
+                    colorDark: '#0a0a0a',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+                console.log('✅ QR Code generated successfully with length:', cleanLink.length);
+            } catch(e) {
+                console.log('QR generation failed:', e);
+                try {
+                    new QRCode(document.getElementById('qrcode'), {
+                        text: encodeURI(firstLink.trim()),
+                        width: 280,
+                        height: 280,
+                        colorDark: '#0a0a0a',
+                        colorLight: '#ffffff',
+                        correctLevel: QRCode.CorrectLevel.H
+                    });
+                    console.log('✅ QR Code generated with encodeURI');
+                } catch(e2) {
+                    console.log('QR generation with encodeURI failed:', e2);
+                }
+            }
+        }
+    }
+});
+</script>
+
+</body>
+</html>
